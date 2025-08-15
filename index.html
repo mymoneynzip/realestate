@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>부동산 투자 요인 분석기</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chosen Palette: Warm Neutrals -->
+    <!-- Application Structure Plan: 이 SPA는 사용자가 아파트, 오피스텔, 다세대/빌라 등 다양한 부동산 유형별 투자 요인을 쉽게 비교하고 탐색할 수 있도록 설계되었습니다. 상단에 명확한 탭 네비게이션을 두어 사용자가 원하는 부동산 유형을 직관적으로 선택할 수 있게 했습니다. 선택된 유형에 따라 긍정적 요인과 부정적 요인이 나란히 표시되는 2단 레이아웃을 사용하여 정보를 체계적으로 제공합니다. 각 요인을 클릭하면 하단에 상세 설명이 나타나는 '드릴다운' 방식을 채택하여, 초기 화면의 복잡성을 줄이고 사용자가 관심 있는 정보에 집중할 수 있도록 유도했습니다. 또한, 핵심 요인들의 중요도를 시각적으로 비교하는 동적 막대 차트를 상단에 배치하여 데이터 기반의 빠른 인사이트를 얻을 수 있도록 사용자 경험을 최적화했습니다. 이 구조는 보고서의 텍스트 중심 정보를 상호작용이 가능한 탐색적 경험으로 전환하여 사용자의 이해도와 편의성을 극대화하기 위해 선택되었습니다. -->
+    <!-- Visualization & Content Choices: 보고서의 핵심 정보인 각 부동산 유형별 투자 요인과 그 중요도를 효과적으로 전달하기 위해 동적 시각화와 상호작용 콘텐츠를 결합했습니다. [정보: 요인별 중요도 비교 -> 목표: 비교 분석 -> 시각화: Chart.js 수평 막대 차트 -> 상호작용: 부동산 유형별 필터링 -> 정당성: 여러 요인의 상대적 중요도를 한눈에 파악하게 하여 직관적인 비교를 가능하게 함]. [정보: 각 요인의 상세 설명 -> 목표: 심층 정보 제공 -> 제시 방법: 클릭 시 확장되는 텍스트 블록 -> 상호작용: 요인 목록 클릭 -> 정당성: 인터페이스를 깔끔하게 유지하면서 사용자가 필요할 때 상세 정보에 접근할 수 있는 '점진적 정보 공개' 원칙을 적용함]. 중요도 등급은 텍스트(별점)와 차트(막대 길이)로 이중 표현하여 명확성을 높였습니다. 이 모든 요소는 SVG나 Mermaid JS 없이 Chart.js(Canvas)와 순수 JavaScript, Tailwind CSS를 사용하여 구현되었습니다. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            background-color: #FDFBF7;
+            color: #333333;
+            font-family: 'Pretendard', sans-serif;
+        }
+        .nav-button {
+            transition: all 0.3s ease;
+        }
+        .nav-button.active {
+            background-color: #A67B5B;
+            color: #FFFFFF;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .factor-item {
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+        }
+        .factor-item:hover {
+            background-color: #EFEAE3;
+            transform: translateY(-2px);
+        }
+        .factor-item.active {
+            background-color: #DCCFC1;
+            border-left-color: #A67B5B;
+        }
+        .content-card {
+            background-color: #FFFFFF;
+            border: 1px solid #EFEAE3;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 40vh;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-[#A67B5B] mb-2">부동산 투자 요인 분석기</h1>
+            <p class="text-lg text-gray-600">아파트, 오피스텔, 다세대/빌라 투자의 핵심 요인을 비교 분석하고 현명한 투자 결정을 내리세요.</p>
+        </header>
+
+        <nav class="flex justify-center space-x-2 md:space-x-4 mb-8">
+            <button id="btn-apartment" class="nav-button active text-sm md:text-base font-semibold py-2 px-4 rounded-full bg-white shadow-sm border border-gray-200" onclick="changePropertyType('apartment')">아파트</button>
+            <button id="btn-officetel" class="nav-button text-sm md:text-base font-semibold py-2 px-4 rounded-full bg-white shadow-sm border border-gray-200" onclick="changePropertyType('officetel')">오피스텔</button>
+            <button id="btn-villa" class="nav-button text-sm md:text-base font-semibold py-2 px-4 rounded-full bg-white shadow-sm border border-gray-200" onclick="changePropertyType('villa')">다세대/빌라</button>
+        </nav>
+
+        <section id="chart-section" class="mb-10 content-card rounded-2xl p-4 md:p-6">
+            <h2 class="text-2xl font-bold text-center mb-4 text-gray-800">핵심 투자 요인 중요도 비교</h2>
+             <div class="chart-container">
+                <canvas id="factorChart"></canvas>
+            </div>
+        </section>
+
+        <main class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <section id="positive-factors" class="content-card rounded-2xl p-4 md:p-6">
+                <h2 class="text-2xl font-bold text-green-600 mb-4 flex items-center">
+                    <span class="text-3xl mr-2">✅</span> 긍정적 요인 (Plus)
+                </h2>
+                <ul id="positive-factors-list" class="space-y-2">
+                </ul>
+            </section>
+
+            <section id="negative-factors" class="content-card rounded-2xl p-4 md:p-6">
+                <h2 class="text-2xl font-bold text-red-600 mb-4 flex items-center">
+                    <span class="text-3xl mr-2">❌</span> 부정적 요인 (Minus)
+                </h2>
+                <ul id="negative-factors-list" class="space-y-2">
+                </ul>
+            </section>
+        </main>
+        
+        <section id="factor-detail-section" class="mt-8 content-card rounded-2xl p-6 md:p-8 min-h-[200px] transition-opacity duration-500 opacity-0">
+            <h3 id="detail-title" class="text-2xl font-bold mb-3 text-[#A67B5B]">요인을 선택하여 상세 설명을 확인하세요.</h3>
+            <p id="detail-description" class="text-gray-700 leading-relaxed whitespace-pre-line"></p>
+        </section>
+
+    </div>
+
+    <script>
+        const investmentData = {
+            apartment: {
+                positive: [
+                    { id: 'apt-pos-1', title: '대규모 재개발, 재건축', rating: 4, description: `대규모 재개발이나 재건축 사업은 아파트 가치에 '초강력 플러스'로 작용합니다. 새로운 편의시설, 세대 규모 증가, 신규 아파트 공급, 주민 소득 수준 향상 등 여러 긍정적 요소를 한꺼번에 불러오기 때문입니다. 1만 세대 이상, 특히 2~3만 세대 이상의 초대형 사업은 지역의 상징적인 변화를 가져옵니다. 송파구가 대규모 재건축을 통해 '강남 3구' 반열에 오른 것이 대표적인 사례이며, 사업 완성 후 10년이 지나면서 서서히 가치가 부각되는 장기적인 특성을 보입니다.` },
+                    { id: 'apt-pos-2', title: '직세권', rating: 4, description: `직장이 가깝거나 출퇴근 시간이 짧은 '직세권'은 아파트 가격 상승의 중요 요인입니다. 가장 강력한 것은 '관공서' 이전으로, 세종시 사례처럼 수많은 공무원 가족과 유관 산업이 함께 이전하며 지역의 소득 수준까지 끌어올립니다. 그 다음은 대기업, 일반 기업 순이며, 직세권의 예측 가능성과 강력한 영향력은 투자 시 반드시 고려해야 할 핵심입니다.` },
+                    { id: 'apt-pos-3', title: '학세권', rating: 4, description: `명문고나 유명 학원가를 품은 '학세권'은 대한민국에서 매우 높은 가치를 지닙니다. 대치동/목동 수준이 최상급으로 평가되며, 학원가 바로 옆 아파트는 무조건 프리미엄이 붙습니다. 또한, 대로를 건너지 않고 초등학교에 등교할 수 있는 '초품아' 역시 전세 수요가 매우 높아 강력한 플러스 요인입니다.` },
+                    { id: 'apt-pos-4', title: '교통과 역세권', rating: 5, description: `교통은 아파트 가격을 결정하는 매우 중요한 요소로, 특히 '지하철'이 가장 강력한 플러스 요인입니다. 단순히 역 개수보다 노선의 '급'이 중요하며, 강남과 서울 주요 부도심을 관통하는 2호선, 9호선, 신분당선, GTX 등은 '중요 노선'으로 최상급 가치를 지닙니다. GTX는 기존 1시간 이상 걸리던 출근 시간을 20~30분대로 단축시켜 파주 운정신도시처럼 지역 가치를 급상승시키는 역할을 합니다.` },
+                    { id: 'apt-pos-5', title: '편의시설', rating: 3, description: `백화점, 대형 마트, 병원 등 편의시설은 삶의 질을 높이는 중요한 인프라입니다. 도심권에서는 기본 요소로 간주되지만, 도심 외곽이나 신도시, 지방에서는 편의시설 유무가 시세에 큰 영향을 미치는 강력한 플러스 요인이 됩니다. 대형 상업시설 입점 시 주변 아파트 시세가 급등하는 현상이 이를 증명합니다.` },
+                    { id: 'apt-pos-6', title: '초고층 (35층 이상)', rating: 4, description: `35층을 넘는 '초고층 아파트'는 희소성 때문에 지역의 랜드마크가 되며 매우 높은 플러스 요인입니다. 쾌적한 주거 환경과 탁 트인 조망권을 제공하여 선호도가 높으며, 지자체 인허가가 어려워 공급이 제한적이라는 점이 가치를 더욱 높입니다. 부산 해운대 지역의 초고층 아파트들이 지역 부동산 시장을 견인한 것이 좋은 예입니다.` },
+                    { id: 'apt-pos-7', title: '신규 아파트 (5~10년 이내)', rating: 3, description: `새롭고 편리한 주거 환경에 대한 수요 때문에 신규 아파트는 큰 플러스 효과를 가집니다. 10년 이상 된 아파트에 비해 10% 이상 높은 프리미엄이 형성되는 경우가 많으며, 발코니 확장, 드레스룸 등 최신 평면 구조와 기술이 적용되어 실 사용 면적과 편의성에서 우위를 점합니다.` },
+                    { id: 'apt-pos-8', title: '아파트 브랜드', rating: 2, description: `대기업 아파트 '브랜드'는 투자 가치에 긍정적인 영향을 미칩니다. 2000년대 이후 건설사들이 평면 구조 기술에 집중하면서 브랜드 가치가 커졌으며, 재건축/재개발 시에도 브랜드 가치가 높은 건설사의 참여가 조합원들의 기대감을 높입니다. 브랜드 이름만으로도 시세에 영향을 미치는 경우가 많습니다.` },
+                    { id: 'apt-pos-9', title: '세대 규모 (1,000세대 이상)', rating: 3, description: `1,000세대 이상 대단지는 '규모의 경제' 효과로 관리비 절감, 넓은 주차 공간 등 실질적인 이점이 많아 선호도가 높습니다. 5,000세대급 초대형 단지는 등장과 동시에 '지역 랜드마크'가 되며, 시간이 지날수록 프리미엄이 더욱 높아질 가능성이 큽니다.` },
+                    { id: 'apt-pos-10', title: '물세권 (미래 가치)', rating: 5, description: `한강, 탄천 등 물을 끼고 있는 '물세권'은 기후 온난화가 심해질수록 그 가치가 더욱 높아질 미래 유망 요인입니다. 특히 고가, 도심권 아파트에서 강한 상승세를 보일 것으로 예상되며, 더위로부터의 시각적 해방감과 쾌적한 환경을 제공합니다. 숲, 공원, 조망권 역시 같은 맥락에서 꾸준히 유망합니다.` },
+                ],
+                negative: [
+                    { id: 'apt-neg-1', title: '인근 신도시 등장', rating: 4, description: `인근에 신도시가 조성되면 기존 도시는 10년에 걸쳐 서서히 가치가 하락하는 경향이 있습니다. 젊은 층이 신도시로 이동하면서 구도심은 슬럼화를 겪을 수 있으며, 부동산의 대세는 한 번 기울면 10년 이상 지속될 수 있으므로 신중한 접근이 필요합니다.` },
+                    { id: 'apt-neg-2', title: '고가도로 인접', rating: 4, description: `주거지 바로 옆 고가도로는 시야 차단, 지속적인 소음, 보행 동선 방해 등 수많은 단점을 야기하여 아파트 가치에 큰 마이너스 요인으로 작용합니다. 심리적 불안감까지 줄 수 있어 주민들의 반대가 매우 심한 대표적인 혐오시설입니다.` },
+                    { id: 'apt-neg-3', title: '부족한 일조량', rating: 3, description: `햇빛을 가로막는 건물이 들어서면 일조량 침해로 시세 하락이 발생할 수 있습니다. 특히 준공업지역이나 상업지역의 아파트는 건물 간격 규정이 약해 일조량 침해 위험이 더 큽니다. 법적 보상을 받더라도 떨어진 집값을 회복하기는 어렵습니다.` },
+                    { id: 'apt-neg-4', title: '지속적인 소음', rating: 4, description: `자동차 전용도로, 항공기 이착륙 소음 등 '지속적인 소음'은 편안한 휴식을 방해하여 아파트 가치에 큰 마이너스 요인입니다. 창문을 닫으면 된다는 설명은 현실적이지 않으며, 안전하고 조용해야 할 주거의 기본 원칙을 해칩니다.` },
+                    { id: 'apt-neg-5', title: '지속적인 냄새, 악취', rating: 3, description: `냄새나 악취는 주관적이지만 거주자에게 가장 큰 불쾌감을 주는 요소입니다. 인근 축사, 농지, 관리 부실 하수도 등에서 발생할 수 있으며, 한번 문제가 발생하면 해결이 쉽지 않아 가치에 부정적인 영향을 미칩니다.` },
+                    { id: 'apt-neg-6', title: '혐오시설 (무료배급소, 납골당 등)', rating: 4, description: `무료 배급소, 납골당, 화장터 등은 물리적, 심리적 안전감을 저해하는 대표적인 혐오시설입니다. 노숙자 증가, 안전 문제, 심리적 불안감 등을 유발하여 지역 아파트 가격에 명백한 마이너스 요인으로 작용합니다.` },
+                    { id: 'apt-neg-7', title: '구릉지 (언덕)', rating: 2, description: `언덕길에 위치한 아파트는 보행의 불편함, 겨울철 교통사고 위험, 아이들 안전 문제 등으로 인해 마이너스 요인입니다. 다만, 지역 전체가 구릉지인 경우 그 영향은 다소 줄어들 수 있습니다.` },
+                ]
+            },
+            officetel: {
+                positive: [
+                    { id: 'off-pos-1', title: '초역세권 & 대학가', rating: 5, description: `오피스텔 투자에서 역세권은 '숨 안 쉬고 걸어갈 거리'일 정도로 초근접성이 핵심입니다. 주 수요층인 직장인과 학생은 시간 효율성을 극대화하려 하므로, 역과의 거리는 임대 수익률에 결정적인 영향을 미칩니다. 대학가 역시 안정적인 임대 수요를 보장하는 강력한 플러스 요인입니다.` },
+                    { id: 'off-pos-2', title: '기본 규모 이상 (500세대 이상)', rating: 4, description: `500세대 이상 대규모 오피스텔은 지역의 랜드마크 효과를 가지며 시세가 안정적으로 유지됩니다. 다만, 분양 초기에는 공급 과잉으로 '입주난'을 겪을 수 있으므로, 3~4년의 안정화 기간을 견딜 수 있는 장기적인 관점과 자금력이 필요합니다. 마곡지구 사례처럼 초기 어려움을 극복하면 높은 수익률을 기대할 수 있습니다.` },
+                    { id: 'off-pos-3', title: '대단지 아파트 근처 (2R 이상)', rating: 3, description: `투룸 이상의 '아파텔'에 해당하는 요인입니다. 아파트 전세가 급등 시, 저렴한 대안을 찾는 세입자 수요를 흡수할 수 있습니다. 기존 아파트 단지의 편의시설과 인프라를 공유할 수 있다는 장점이 있으며, 전세보증금과 매매가 차이가 적을 때 좋은 투자 기회가 될 수 있습니다.` },
+                    { id: 'off-pos-4', title: '서비스 특화', rating: 2, description: `컨시어지, 입주자 전용 식당, 루프탑 공원 등 차별화된 서비스를 제공하는 오피스텔은 투자 매력을 높입니다. 하지만 분양 시 홍보했던 서비스가 실제 운영되지 않는 경우가 많으므로, 투자 전 실제 운영 여부, 추가 관리비 등을 반드시 확인하여 '보여주기식' 서비스에 현혹되지 않도록 주의해야 합니다.` },
+                ],
+                negative: [
+                    { id: 'off-neg-1', title: '25년 이상 노후 오피스텔', rating: 5, description: `오피스텔은 20년이 넘으면 아파트보다 급속도로 노후화됩니다. 소유자들이 저렴한 유지보수를 선호하고, 세입자 위주 거주로 건물 애착이 낮아 관리 부실이 심화되는 경향이 있습니다. 잦은 수리 요구로 초보 투자자에게는 큰 스트레스가 될 수 있습니다.` },
+                    { id: 'off-neg-2', title: '주택가 혼재 오피스텔', rating: 3, description: `빌라가 많은 주택가에 섞여 있으면 오피스텔의 핵심 장점인 '상권의 편리성'이 사라집니다. 요즘 빌라도 풀옵션을 갖추고 있어 차별점이 없어지고, 비싼 관리비만 부담하는 단점이 부각되어 주변 빌라와 힘겨운 임대 경쟁을 해야 합니다.` },
+                    { id: 'off-neg-3', title: '20~30세대 이하 소규모', rating: 3, description: `너무 작은 규모는 관리 효율성이 떨어지고, 치안 및 입주자 관리가 미흡하여 선호도가 낮습니다. 이로 인해 주변보다 저렴한 임대료를 받을 수밖에 없어 수익성이 저하될 수 있습니다. 단, 도심 핵심 지역처럼 공급이 극히 제한적인 곳에서는 예외적으로 높은 수익률을 보이기도 합니다.` },
+                    { id: 'off-neg-4', title: '너무 다양한 평형대', rating: 3, description: `수익 극대화를 위해 '꾸겨 넣어 설계한' 오피스텔은 호실별 모양이 제각각이고 비효율적입니다. 이는 채광 부족, 공용부 관리비 증가로 이어져 세입자 선호도를 떨어뜨리고, 평형이 비표준적이라 매매 시 가격 비교가 어려워 환금성이 저하되는 단점이 있습니다.` },
+                ]
+            },
+            villa: {
+                positive: [
+                    { id: 'vil-pos-1', title: '역세권 (도보 5분 이내)', rating: 5, description: `빌라의 주 수요층은 대중교통에 민감하므로, 도보 5분 이내 '역세권'은 세입자 관리에 매우 유리하며 불황기에도 시세를 방어하는 가장 강력한 요인입니다. 특히 정부 주도 개발 사업 시 역세권은 비역세권에 비해 평가에서 훨씬 유리하여 미래 가치 상승의 핵심 기반이 됩니다.` },
+                    { id: 'vil-pos-2', title: '초등학교 인근 지역', rating: 4, description: `자녀의 안전한 통학 환경을 중시하는 학부모들에게 '초등학교 인근'은 최선호 지역입니다. 교육환경보호법에 따라 유해시설이 들어설 수 없어 주거 환경이 쾌적하게 유지되며, 문구점, 소아과 등 기본적인 편의시설이 자연스럽게 형성되어 안정적인 임대 수요를 확보할 수 있습니다.` },
+                    { id: 'vil-pos-3', title: '인근 아파트 가격 수준이 높은 곳', rating: 5, description: `인근 아파트 가격이 높을수록 빌라의 가치는 동반 상승합니다. 아파트 가격 급등 시, 주택 구매에 부담을 느낀 수요자들이 합리적인 대안으로 빌라를 찾기 때문입니다. 이는 빌라의 매매 수요를 자극할 뿐만 아니라, 해당 지역의 전월세 시세도 높게 형성시켜 시세 차익과 임대 수익 모두에 긍정적인 영향을 미칩니다.` },
+                    { id: 'vil-pos-4', title: '버스 등 교통 라인', rating: 2, description: `역세권이 아니더라도, 주택가의 대중교통 접근성을 보완하는 버스 노선은 중요한 플러스 요인입니다. 특히 지방에서는 버스 라인 확보 여부가 전월세 가격에 직접적인 차이를 유발할 정도로 영향력이 큽니다.` },
+                ],
+                negative: [
+                    { id: 'vil-neg-1', title: '재개발 소재로 과다 포장된 곳', rating: 4, description: `실제 재개발 가능성이 불확실함에도 '재개발 예정'이라는 소문만으로 가격이 과도하게 부풀려진 곳은 위험합니다. 재개발은 '낙후된 지역'에서만 가능하며, 수많은 변수로 인해 무산될 위험이 큽니다. 불확실한 미래 프리미엄을 주고 '막차'를 타게 되면, 높은 매수 가격 때문에 임대를 놓기도 어려워 투자금이 장기간 묶일 수 있습니다.` },
+                    { id: 'vil-neg-2', title: '불법 증축(위반건축물), 용도 변경', rating: 5, description: `다세대 주택 투자 시 가장 치명적인 위험 요소입니다. 발코니 확장 등 '불법 증축'이나, '근린생활시설'을 주거용으로 불법 개조한 '용도 변경'은 적발 시 원상 복구까지 매년 이행강제금이 부과됩니다. 건축물대장을 통해 '위반건축물' 여부와 용도가 '주택'인지 반드시 확인해야 합니다.` },
+                    { id: 'vil-neg-3', title: '보이지 않는 균열 및 하자', rating: 3, description: `빌라는 영세 건설사가 짓는 경우가 많아 사후 대처가 미흡할 수 있습니다. 도배, 장판으로 가려지지 않는 결로, 균열, 보일러, 배선, 창틀 등의 하자는 세입자의 잦은 수리 요구와 예상치 못한 추가 비용 부담으로 이어질 수 있으므로, 매수 전 꼼꼼한 확인이 필수적입니다.` },
+                ]
+            }
+        };
+
+        let currentPropertyType = 'apartment';
+        let factorChart;
+
+        const renderFactors = (propertyType) => {
+            const posList = document.getElementById('positive-factors-list');
+            const negList = document.getElementById('negative-factors-list');
+            
+            posList.innerHTML = '';
+            negList.innerHTML = '';
+
+            investmentData[propertyType].positive.forEach(factor => {
+                posList.innerHTML += `
+                    <li id="${factor.id}" class="factor-item p-3 rounded-lg border-l-4 border-transparent" onclick="showFactorDetail('${propertyType}', 'positive', '${factor.id}')">
+                        <div class="flex justify-between items-center">
+                            <span class="font-semibold">${factor.title}</span>
+                            <span class="text-yellow-500 font-bold">${'★'.repeat(factor.rating)}${'☆'.repeat(5 - factor.rating)}</span>
+                        </div>
+                    </li>
+                `;
+            });
+
+            investmentData[propertyType].negative.forEach(factor => {
+                negList.innerHTML += `
+                    <li id="${factor.id}" class="factor-item p-3 rounded-lg border-l-4 border-transparent" onclick="showFactorDetail('${propertyType}', 'negative', '${factor.id}')">
+                        <div class="flex justify-between items-center">
+                            <span class="font-semibold">${factor.title}</span>
+                            <span class="text-yellow-500 font-bold">${'★'.repeat(factor.rating)}${'☆'.repeat(5 - factor.rating)}</span>
+                        </div>
+                    </li>
+                `;
+            });
+        };
+
+        const showFactorDetail = (propertyType, factorType, factorId) => {
+            const factor = investmentData[propertyType][factorType].find(f => f.id === factorId);
+            
+            document.getElementById('detail-title').textContent = factor.title;
+            document.getElementById('detail-description').textContent = factor.description;
+            
+            document.getElementById('factor-detail-section').classList.remove('opacity-0');
+
+            document.querySelectorAll('.factor-item').forEach(item => item.classList.remove('active'));
+            document.getElementById(factorId).classList.add('active');
+        };
+
+        const changePropertyType = (propertyType) => {
+            currentPropertyType = propertyType;
+            
+            document.querySelectorAll('.nav-button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${propertyType}`).classList.add('active');
+            
+            renderFactors(propertyType);
+            updateChart(propertyType);
+            
+            document.getElementById('detail-title').textContent = '요인을 선택하여 상세 설명을 확인하세요.';
+            document.getElementById('detail-description').textContent = '';
+            document.getElementById('factor-detail-section').classList.add('opacity-0');
+        };
+
+        const createChart = () => {
+            const ctx = document.getElementById('factorChart').getContext('2d');
+            factorChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '긍정 요인',
+                        data: [],
+                        backgroundColor: 'rgba(74, 222, 128, 0.6)',
+                        borderColor: 'rgba(34, 197, 94, 1)',
+                        borderWidth: 1
+                    }, {
+                        label: '부정 요인',
+                        data: [],
+                        backgroundColor: 'rgba(248, 113, 113, 0.6)',
+                        borderColor: 'rgba(239, 68, 68, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            max: 5,
+                            ticks: {
+                                stepSize: 1,
+                                callback: function(value) {
+                                    return '★'.repeat(value);
+                                }
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                autoSkip: false,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.x !== null) {
+                                        label += `${context.parsed.x}점`;
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        };
+
+        const updateChart = (propertyType) => {
+            const data = investmentData[propertyType];
+            const allFactors = [...data.positive, ...data.negative].sort((a, b) => b.rating - a.rating);
+
+            factorChart.data.labels = allFactors.map(f => f.title);
+            
+            const positiveData = allFactors.map(f => data.positive.find(pf => pf.id === f.id) ? f.rating : 0);
+            const negativeData = allFactors.map(f => data.negative.find(nf => nf.id === f.id) ? f.rating : 0);
+
+            factorChart.data.datasets[0].data = positiveData;
+            factorChart.data.datasets[1].data = negativeData;
+            
+            factorChart.update();
+        };
+
+        window.onload = () => {
+            createChart();
+            changePropertyType('apartment');
+        };
+    </script>
+</body>
+</html>
